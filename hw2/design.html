@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Homework 2: Design</title>
+<style>
+  .link {
+    stroke: gray;
+    stroke-width: .1px;
+  }
+
+  .node {
+    fill: white;
+    stroke: #000;
+    stroke-width: .98px;
+  }
+
+  .node:hover {
+    fill: black;
+  }
+
+.node--source {
+  fill: #2ca02c;
+}
+
+.node--target {
+  fill: #d62728;
+}
+
+.link--source,
+.link--target {
+  stroke-opacity: 1;
+  stroke-width: 2px;
+}
+
+.link--source {
+  stroke: #d62728;
+}
+
+.link--target {
+  stroke: #2ca02c;
+}
+
+</style>
+<text> MOVE THE SLIDER TO GET TRADING PARTNERS BY COUNTRY AND YEAR </text>
+<br>
+<label> Time update:
+        <text>1995</text>
+        <input type="range" name="points" min="1995" max="2012" step="1" value="1995" id="slider-time" oninput=";">
+        <text>2012</text>
+    </label>
+    <br>
+<label>Design<input type="radio" name="Design" value="d" title="d" checked onclick="" ></input></label>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+
+ var margin = {top: 10, bottom: 10, left: 10, right: 10};
+  var width = 800 - margin.left - margin.right;
+  var height = 2000 - margin.top - margin.bottom;
+
+
+  var svg = d3.select("body").append("svg")
+              .attr("width", width+margin.left+margin.right)
+              .attr("height", height+margin.top+margin.bottom)
+              .append("g")
+
+var link = svg.append("g").selectAll(".link"),
+    node = svg.append("g").selectAll(".node");
+
+
+var force = d3.layout.force()
+    .size([width, height])
+    .linkDistance(10)
+    
+
+  var data = []; 
+
+    function year_data(input_data, year)
+    {
+        var y = parseInt(2012 - year);
+        var annual_data =  input_data.map(function (d){
+            return {name: d.name, continent: d.continent, country_id: d.country_id,
+                    latitude: d.latitude, longitude: d.longitude
+                    ,gdp: d.years[y].gdp, population: d.years[y].population, year: d.years[y].year,
+                    total_export: d.years[y].total_export_value, total_import: d.years[y].total_import_value,
+                    trading_partners: d.years[y].top_partners}})
+            ;
+
+            return annual_data;
+        };
+
+d3.json("data/countries_1995_2012.json", function(jdata){
+
+          year = document.getElementById("slider-time");
+
+          d3.selectAll("input").on("change", function(){ 
+
+          year = parseInt(d3.select("#slider-time").property("value"));
+
+          console.log(year);
+
+           data = year_data(jdata, year);
+
+            //Create array for use with Links
+            var export_links = [];
+            var index = 0;
+            for (x in data) {
+                for (j in data[x].trading_partners) {
+                    var h = x;
+                    data.forEach(function(d,i){
+                        if (parseInt(data[x].trading_partners[j].country_id) == parseInt(d.country_id)) {
+                            h = parseInt(i);
+                        }
+                    });
+                    export_links[index] = {"source": parseInt(x), "target": parseInt(h) };
+                    index = index+1;
+                };
+            };
+  var link = svg.selectAll(".link")
+                    .data(export_links)
+                    .style("stroke", "gray")
+
+            link
+                    .enter()
+                    .append("line")
+                    .attr("class", "link")
+                    .selectAll("link").on("mouseover", function(d) {
+                        d3.select(this).style("stroke-opacity",.9)
+                    })
+                    .on("mouseout", function(d) {
+                        d3.select(this).style("stroke-opacity",.2);
+                    });
+
+
+   var node = svg.selectAll(".node")
+                    .data(data)
+
+            node
+                    .enter()
+                    .append("g")
+                    .attr("class", "node")
+
+            
+            node.append("circle")
+                    .attr("r", 4)
+                    .attr("x", function (d) {
+                        return 1
+                    }).attr("y", function (d) {
+                        return 10
+                    })
+                    
+
+            node.append("text")
+                    .attr("font-size", 12)
+                    .attr("x", function (d) {
+                        return 10
+                    })
+                    .attr("y", function (d, i) {
+                        return 5
+                    })
+                    .text(function (d) {
+                        return ( d.name);
+                    })
+
+
+
+  node
+                    .on("mouseover", mouseovered)
+                    .on("mouseout", mouseouted);;
+
+
+  //Borrowed from mbostock
+
+  function mouseovered(d) {
+  node
+      .each(function(n) { n.target = n.source = false; });
+
+  link
+      .classed("link--target", function(l) { if (l.target === d) return l.source.source = true; })
+      .classed("link--source", function(l) { if (l.source === d) return l.target.target = true; })
+    .filter(function(l) { return l.target === d || l.source === d; })
+      .each(function() { this.parentNode.appendChild(this); });
+
+  node
+      .classed("node--target", function(n) { return n.target; })
+      .classed("node--source", function(n) { return n.source; });
+}
+
+function mouseouted(d) {
+  link
+      .classed("link--target", false)
+      .classed("link--source", false);
+
+  node
+      .classed("node--target", false)
+      .classed("node--source", false);
+}
+
+
+function design(){
+
+  link.remove()
+
+
+  link = svg.selectAll(".link")
+              .data(export_links);
+  link.enter().append("line")
+    .attr("class", "link")
+    .style("stroke", "gray")
+
+
+
+   force.nodes(data)
+      .links(export_links)
+      .start();
+
+  force.stop();
+
+  var r = Math.min(height, width) / 4;
+
+  var arc = d3.svg.arc()
+            .outerRadius(r);
+
+  var pie = d3.layout.pie()
+                  .sort(function(a, b) {
+                if(a["continent"]==b["continent"]) {
+                      return d3.ascending(a["name"], b["name"]);
+                      }
+                return d3.ascending(a["continent"], b["continent"]);
+                  })
+                  .value(function (d) {return 1 });
+  
+  function Africa(d,continent){
+    return d.continent == "Africa"
+  }
+
+  function Asia(d,continent){
+    return d.continent == "Asia"
+  }
+
+  function Americas(d,continent){
+    return d.continent == "Americas"
+  }
+
+  function Europe(d,continent){
+    return d.continent == "Europe"
+  }
+
+  function Oceania(d,continent){
+    return d.continent == "Oceania"
+  }
+//Africa
+  data1 = pie(data.filter(Africa)).map(function(d, i) {
+  d.innerRadius = 0;
+  d.outerRadius = r;
+
+  d.data.x = arc.centroid(d)[0]+width/1.5;
+  d.data.y = arc.centroid(d)[1]+height/4;
+  
+
+return d.data
+
+  })
+//Asia
+ data2 = pie(data.filter(Asia)).map(function(d, i) {
+  d.innerRadius = 0;
+  d.outerRadius = r;
+
+  d.data.x = arc.centroid(d)[0]+width/1.2;
+  d.data.y = arc.centroid(d)[1]+height/7;
+  
+
+return d.data
+
+  })
+//Americas
+  data3 = pie(data.filter(Americas)).map(function(d, i) {
+  d.innerRadius = 0;
+  d.outerRadius = r;
+
+  d.data.x = arc.centroid(d)[0]+width/5;
+  d.data.y = arc.centroid(d)[1]+height/4.5;
+  
+
+return d.data
+
+  })
+//Europe
+   data4 = pie(data.filter(Europe)).map(function(d, i) {
+  d.innerRadius = 0;
+  d.outerRadius = r;
+
+  d.data.x = arc.centroid(d)[0]+width/2.2;
+  d.data.y = arc.centroid(d)[1]+height/11;
+  
+
+return d.data
+
+  })
+//Oceania
+    data5 = pie(data.filter(Oceania)).map(function(d, i) {
+  d.innerRadius = 0;
+  d.outerRadius = r;
+
+  d.data.x = arc.centroid(d)[0]+width/6.5;
+  d.data.y = arc.centroid(d)[1]+height/13;
+  
+
+return d.data
+
+  })
+
+  graph_update(0)
+}
+
+  graph_update = function(duration) { 
+
+    link.transition().duration(duration)
+      .attr("x1", function(d) { return d.target.x; })
+      .attr("y1", function(d) { return d.target.y; })
+      .attr("x2", function(d) { return d.source.x; })
+      .attr("y2", function(d) { return d.source.y; })
+
+  var g = svg.selectAll("g.node") 
+
+  g.transition().duration(duration)
+    .attr("transform", function(d) {
+     return "translate("+d.x+","+d.y+")";
+        });
+
+   }
+d3.select("input[value=\"d\"]").on("click", design);
+
+        
+
+design();
+
+});
+});
+  
+</script> 
+</body>
+</html>
