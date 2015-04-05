@@ -10,6 +10,7 @@
     <script src="libs/bootstrap/js/bootstrap.min.js" charset="utf-8"></script>
 
     <script src="http://hs8.de/cs171_tests/tester.js"></script>
+    <script src="http://d3js.org/queue.v1.min.js"></script>
 
     <!--Stylesheets-->
     <link rel="stylesheet" type="text/css" href="libs/bootstrap/css/bootstrap.min.css">
@@ -66,6 +67,10 @@
             // HINT: javascript Date objects are comparable !!
             // see: http://www.w3schools.com/js/js_date_methods.asp
 
+             allData.map(function(d){
+                if (d.time < from || d.time > to) {}
+                else  count = count + d.count;
+            })
 
 
 
@@ -108,13 +113,20 @@
         }
 
 
-        // TODO: TASK 2 A -- implement your data loading here and then call "allLoaded(perDayData, metaData)"
+        // TODO: TASK 2 A -- implement your data loading here and then call "allLoaded(perDayData, metaData)" 
+     
 
+    queue()
+            .defer(d3.json, "data/perDayData.json")
+            .defer(d3.json, "data/MYWorld_fields.json") 
+            .await(dataLoaded) 
 
+    function dataLoaded(error, allData, metaData){ 
+        allLoaded(allData, metaData);
+       };
 
-
-
-
+       
+       
 
     })
 
